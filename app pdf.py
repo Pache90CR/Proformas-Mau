@@ -17,7 +17,7 @@ class PDF(FPDF):
             self.ln(50) # Espacio grande para que el logo no tape nada
         
         self.set_font('Arial', 'B', 16)
-        self.cell(0, 10, 'FACTURA PROFORMA', 0, 1, 'R')
+        self.cell(0, 10, 'FACTURA', 0, 1, 'R')
         
         self.set_font('Arial', '', 10)
         ahora_cr = datetime.now(local_tz)
