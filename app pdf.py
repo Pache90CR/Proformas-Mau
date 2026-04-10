@@ -2,23 +2,34 @@ import streamlit as st
 from fpdf import FPDF
 import os
 from datetime import datetime
+import pytz # Librería para la zona horaria
 
 # Configuración de página para móvil
 st.set_page_config(page_title="Proforma Grúas Mau", layout="centered")
 
+# Definir zona horaria de Costa Rica
+local_tz = pytz.timezone('America/Costa_Rica')
+
 class PDF(FPDF):
     def header(self):
+        # LOGO MÁS GRANDE (Tamaño 50)
         if os.path.exists("logo.png"):
-            self.image("logo.png", 10, 8, 35)
+            # Aumentamos el ancho a 50 para que destaque
+            self.image("logo.png", 10, 8, 50) 
         
         self.set_font('Arial', 'B', 16)
         self.cell(0, 10, 'FACTURA PROFORMA', 0, 1, 'R')
+        
         self.set_font('Arial', '', 10)
-        num_proforma = datetime.now().strftime("%Y%m%d-%H%M")
-        fecha_hoy = datetime.now().strftime("%d/%m/%Y")
+        # Fecha y Hora ajustada a Costa Rica
+        ahora_cr = datetime.now(local_tz)
+        num_proforma = ahora_cr.strftime("%Y%m%d-%H%M")
+        fecha_hoy = ahora_cr.strftime("%d/%m/%Y %I:%M %p") # Incluye hora y AM/PM
+        
         self.cell(0, 5, f'Proforma N°: {num_proforma}', 0, 1, 'R')
         self.cell(0, 5, f'Fecha: {fecha_hoy}', 0, 1, 'R')
-        self.ln(15)
+        # Aumentamos el espacio para que el logo grande no tape el texto de abajo
+        self.ln(25) 
 
 def generar_pdf(datos_cliente, items, info_adicional, aplicar_iva):
     try:
@@ -63,14 +74,13 @@ def generar_pdf(datos_cliente, items, info_adicional, aplicar_iva):
             pdf.cell(40, 10, f"{t_linea:,.2f}", 1, 1, 'R')
             subtotal += t_linea
 
-        # --- TOTALES DINÁMICOS ---
+        # --- TOTALES ---
         pdf.ln(5)
         pdf.set_font("Arial", 'B', 10)
         
         if aplicar_iva:
             impuestos = subtotal * 0.13
             total_pagar = subtotal + impuestos
-            
             pdf.cell(150, 8, "SUBTOTAL: ", 0, 0, 'R')
             pdf.cell(40, 8, f"{subtotal:,.2f}", 1, 1, 'R')
             pdf.cell(150, 8, "IMPUESTOS (13%): ", 0, 0, 'R')
@@ -96,8 +106,6 @@ with st.expander("Datos del Cliente", expanded=True):
     tel = st.text_input("Telefono / Fax")
 
 st.divider()
-
-# OPCIÓN DE IVA
 aplicar_iva = st.checkbox("¿Aplicar el 13% de IVA?", value=True)
 
 st.subheader("Detalle del Servicio")
@@ -117,13 +125,13 @@ if 'lista' in st.session_state and st.session_state.lista:
     datos_c = {"nombre": nom, "id": ced}
     info_a = {"tel": tel}
     
-    # Pasamos la opción del IVA a la función
     pdf_data = generar_pdf(datos_c, st.session_state.lista, info_a, aplicar_iva)
     
     if isinstance(pdf_data, str):
         st.error(f"Error: {pdf_data}")
     else:
-        archivo_nombre = f"Proforma_{nom}_{datetime.now().strftime('%H%M')}.pdf"
+        ahora_cr_file = datetime.now(local_tz).strftime('%H%M')
+        archivo_nombre = f"Proforma_{nom}_{ahora_cr_file}.pdf"
         
         st.download_button(
             label="💾 GENERAR Y DESCARGAR PDF",
