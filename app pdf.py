@@ -12,11 +12,17 @@ local_tz = pytz.timezone('America/Costa_Rica')
 if 'lista' not in st.session_state:
     st.session_state.lista = []
 
+# Definimos el nombre exacto del archivo de imagen
+# Asegúrate de que image_5.png esté subido con este nombre en GitHub
+IMAGEN_LOGO = "logo_icono.png"
+
 class PDF(FPDF):
     def header(self):
-        if os.path.exists("logo_icono.png"):
-            self.image("logo_icono.png", 55, 10, 100) 
-            self.ln(50) 
+        # --- LOGO EN EL PDF (Usando logo_icono.png centrado a 100) ---
+        if os.path.exists(IMAGEN_LOGO):
+            # Centrado: (Ancho página 210 - Logo 100) / 2 = 55
+            self.image(IMAGEN_LOGO, 55, 10, 100) 
+            self.ln(50) # Salto de línea grande para no tapar los datos
         
         self.set_font('Arial', 'B', 16)
         self.cell(0, 10, 'FACTURA PROFORMA', 0, 1, 'R')
@@ -32,6 +38,8 @@ def generar_pdf(datos_cliente, items, info_adicional, aplicar_iva):
     try:
         pdf = PDF()
         pdf.add_page()
+        
+        # --- DATOS DEL EMISOR ---
         pdf.set_font("Arial", 'B', 12)
         pdf.cell(0, 7, "GRUAS MAU - SERVICIO 24/7", 0, 1)
         pdf.set_font("Arial", size=9)
@@ -39,6 +47,7 @@ def generar_pdf(datos_cliente, items, info_adicional, aplicar_iva):
         pdf.cell(0, 5, "Emails: Mau27@gmail.com / Jossimedra@gmail.com", 0, 1)
         pdf.ln(10)
 
+        # --- DATOS DEL CLIENTE ---
         pdf.set_fill_color(240, 240, 240)
         pdf.set_font("Arial", 'B', 10)
         pdf.cell(0, 7, " DATOS DEL CLIENTE", 0, 1, 'L', True)
@@ -48,6 +57,7 @@ def generar_pdf(datos_cliente, items, info_adicional, aplicar_iva):
         pdf.cell(0, 7, f"Telefono: {info_adicional['tel']}", 0, 1)
         pdf.ln(5)
 
+        # --- DETALLE DEL SERVICIO ---
         pdf.set_fill_color(30, 30, 30)
         pdf.set_text_color(255, 255, 255)
         pdf.set_font("Arial", 'B', 10)
@@ -61,6 +71,7 @@ def generar_pdf(datos_cliente, items, info_adicional, aplicar_iva):
         subtotal = 0
         for item in items:
             t_linea = item['cantidad'] * item['precio']
+            # Quitar tildes para evitar errores de PDF
             desc = item['nombre'].replace('á','a').replace('é','e').replace('í','i').replace('ó','o').replace('ú','u').replace('ñ','n').replace('Á','A').replace('É','E').replace('Í','I').replace('Ó','O').replace('Ú','U').replace('Ñ','N')
             pdf.cell(90, 10, desc, 1)
             pdf.cell(25, 10, str(item['cantidad']), 1, 0, 'C')
@@ -88,16 +99,19 @@ def generar_pdf(datos_cliente, items, info_adicional, aplicar_iva):
     except Exception as e:
         return str(e)
 
-# --- ENCABEZADO ---
-icon_path = "logo_icono.png"
+# --- ENCABEZADO DE LA APP WEB ---
+# Usamos logo_icono.png para la cabecera
 col_ico, col_tit = st.columns([1, 4])
 with col_ico:
-    if os.path.exists(icon_path): st.image(icon_path, width=70)
-    else: st.write("🚜")
+    if os.path.exists(IMAGEN_LOGO): 
+        # Mostramos la grúa roja a un ancho de 70
+        st.image(IMAGEN_LOGO, width=70)
+    else: 
+        st.write("🚜")
 with col_tit:
     st.title("Grúas Mau - Facturación")
 
-# --- SECCIÓN DE DATOS (FUERA DE FORMULARIO PARA EVITAR ERRORES) ---
+# --- SECCIÓN DE DATOS Y SERVICIOS ---
 with st.expander("📝 Datos del Cliente", expanded=True):
     nom = st.text_input("Empresa / Nombre", key="txt_nom")
     ced = st.text_input("Nit / Cedula", key="txt_ced")
@@ -112,15 +126,13 @@ c1, c2 = st.columns(2)
 with c1: it_c = st.number_input("Cantidad", min_value=1, value=1, key="num_cant")
 with c2: it_p = st.number_input("Precio", min_value=0.0, step=1000.0, key="num_prec")
 
-# BOTÓN AGREGAR (Ahora funciona siempre)
 if st.button("➕ AGREGAR A LA TABLA", use_container_width=True):
     if it_n:
         st.session_state.lista.append({"nombre": it_n, "cantidad": it_c, "precio": it_p})
         st.toast(f"Agregado: {it_n}")
     else:
-        st.error("Escribe la descripción del servicio")
+        st.error("Por favor, escribe la descripción del servicio.")
 
-# --- TABLA Y GENERACIÓN ---
 if st.session_state.lista:
     st.table(st.session_state.lista)
     
@@ -136,10 +148,9 @@ if st.session_state.lista:
             type="primary"
         )
 
-    # BOTÓN LIMPIAR (Borra la lista y reinicia los campos)
     if st.button("🧹 NUEVA PROFORMA (BORRAR TODO)", use_container_width=True):
+        # Borra la lista y fuerza el reinicio para limpiar los campos
         st.session_state.lista = []
-        # Para limpiar los textos, reiniciamos la sesión
         for key in st.session_state.keys():
             del st.session_state[key]
         st.rerun()
