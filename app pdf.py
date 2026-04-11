@@ -8,15 +8,13 @@ import pytz
 st.set_page_config(page_title="Proforma Grúas Mau", layout="centered")
 local_tz = pytz.timezone('America/Costa_Rica')
 
-# --- INICIALIZACIÓN DE VARIABLES DE SESIÓN ---
 if 'lista' not in st.session_state:
     st.session_state.lista = []
 
 class PDF(FPDF):
     def header(self):
-        # Usamos el mismo logo de icono para el PDF si existe
+        # Logo en el PDF
         if os.path.exists("logo_icono.png"):
-            # Centrado: (Ancho página 210 - Logo 100) / 2 = 55
             self.image("logo_icono.png", 55, 10, 100) 
             self.ln(50) 
         
@@ -63,7 +61,6 @@ def generar_pdf(datos_cliente, items, info_adicional, aplicar_iva):
         subtotal = 0
         for item in items:
             t_linea = item['cantidad'] * item['precio']
-            # Quitar tildes para evitar errores
             desc = item['nombre'].replace('á','a').replace('é','e').replace('í','i').replace('ó','o').replace('ú','u').replace('ñ','n').replace('Á','A').replace('É','E').replace('Í','I').replace('Ó','O').replace('Ú','U').replace('Ñ','N')
             pdf.cell(90, 10, desc, 1)
             pdf.cell(25, 10, str(item['cantidad']), 1, 0, 'C')
@@ -91,33 +88,22 @@ def generar_pdf(datos_cliente, items, info_adicional, aplicar_iva):
     except Exception as e:
         return str(e)
 
-# --- INTERFAZ ---
-
-# TÍTULO PERSONALIZADO CON HTML PARA USAR LA IMAGEN DE LA GRÚA
+# --- ENCABEZADO CORREGIDO (SIN DUPLICADOS) ---
 icon_path = "logo_icono.png"
 
-if os.path.exists(icon_path):
-    # Esto crea un diseño de HTML con la imagen y el texto alineados
-    # 'width: 50px' controla el tamaño de la grúa en la pantalla
-    title_html = f"""
-        <div style="display: flex; align-items: center; margin-bottom: 20px;">
-            <img src="data:image/png;base64,{st.image(icon_path, width=50, output_format='PNG')}" style="margin-right: 15px;">
-            <h1 style="margin: 0; font-size: 2.5rem;">Grúas Mau - Facturación</h1>
-        </div>
-    """
-    # En Streamlit, 'st.markdown' con HTML renderizado es lo que logra esto.
-    # NOTA: st.image() devuelve una URL interna que no sirve para HTML directo, 
-    # por lo que st.image() se usa solo para verificar que la imagen existe y cargarla.
-    # La solución real requiere una URL pública o incrustar la imagen en Base64.
-    
-    # SOLUCIÓN COMPATIBLE CON STREAMLIT CLOUD PARA ICONO LOCAL:
-    # Mostramos la imagen sola y luego el título sin emoji.
-    st.image(icon_path, width=80)
-    st.title("Grúas Mau - Facturación")
-else:
-    # Si no encuentra el logo_icono.png, usa el emoji tractor como respaldo
-    st.title("🚜 Grúas Mau - Facturación")
+# Creamos dos columnas: una pequeña para el icono y una grande para el texto
+col_ico, col_tit = st.columns([1, 4])
 
+with col_ico:
+    if os.path.exists(icon_path):
+        st.image(icon_path, width=70)
+    else:
+        st.write("🚜") # Emoji de respaldo si no hay imagen
+
+with col_tit:
+    st.title("Grúas Mau - Facturación")
+
+# --- FORMULARIO ---
 with st.form("formulario_proforma", clear_on_submit=True):
     st.subheader("📝 Datos del Cliente")
     nom = st.text_input("Empresa / Nombre")
@@ -129,9 +115,9 @@ with st.form("formulario_proforma", clear_on_submit=True):
     
     st.subheader("🛠️ Detalle del Servicio")
     it_n = st.text_input("¿Qué servicio se realizó?")
-    col1, col2 = st.columns(2)
-    with col1: it_c = st.number_input("Cantidad", min_value=1, value=1)
-    with col2: it_p = st.number_input("Precio", min_value=0.0, step=1000.0)
+    c1, c2 = st.columns(2)
+    with c1: it_c = st.number_input("Cantidad", min_value=1, value=1)
+    with c2: it_p = st.number_input("Precio", min_value=0.0, step=1000.0)
     
     boton_agregar = st.form_submit_button("➕ AGREGAR SERVICIO")
     
@@ -139,15 +125,11 @@ with st.form("formulario_proforma", clear_on_submit=True):
         if it_n and it_c > 0 and it_p > 0:
             st.session_state.lista.append({"nombre": it_n, "cantidad": it_c, "precio": it_p})
             st.toast("Añadido a la tabla")
-        else:
-            st.warning("Por favor llena todos los campos del servicio.")
 
-# Mostrar la tabla fuera del formulario para que sea visible mientras se llena
 if st.session_state.lista:
     st.subheader("Resumen de Servicios")
     st.table(st.session_state.lista)
     
-    # Botón para generar PDF
     res = generar_pdf({"nombre": nom, "id": ced}, st.session_state.lista, {"tel": tel}, aplicar_iva)
     
     if not isinstance(res, str):
@@ -161,7 +143,6 @@ if st.session_state.lista:
             type="primary"
         )
 
-    # Botón para limpiar todo (incluyendo la lista)
     if st.button("🧹 NUEVA PROFORMA (BORRAR TODO)", use_container_width=True):
         st.session_state.lista = []
         st.rerun()
