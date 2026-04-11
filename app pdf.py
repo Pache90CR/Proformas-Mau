@@ -8,16 +8,12 @@ import pytz
 st.set_page_config(page_title="Proforma Grúas Mau", layout="centered")
 local_tz = pytz.timezone('America/Costa_Rica')
 
-# --- FUNCIÓN PARA REINICIAR TODO ---
-def reiniciar_aplicacion():
-    # Borra todas las variables guardadas en la sesión
-    for key in st.session_state.keys():
-        del st.session_state[key]
-    st.rerun()
+# --- INICIALIZACIÓN DE VARIABLES DE SESIÓN ---
+if 'lista' not in st.session_state:
+    st.session_state.lista = []
 
 class PDF(FPDF):
     def header(self):
-        # Logo centrado tamaño 100
         if os.path.exists("logo.png"):
             self.image("logo.png", 55, 10, 100) 
             self.ln(50)
@@ -65,7 +61,6 @@ def generar_pdf(datos_cliente, items, info_adicional, aplicar_iva):
         subtotal = 0
         for item in items:
             t_linea = item['cantidad'] * item['precio']
-            # Quitar tildes para evitar errores
             desc = item['nombre'].replace('á','a').replace('é','e').replace('í','i').replace('ó','o').replace('ú','u').replace('ñ','n').replace('Á','A').replace('É','E').replace('Í','I').replace('Ó','O').replace('Ú','U').replace('Ñ','N')
             pdf.cell(90, 10, desc, 1)
             pdf.cell(25, 10, str(item['cantidad']), 1, 0, 'C')
@@ -96,35 +91,41 @@ def generar_pdf(datos_cliente, items, info_adicional, aplicar_iva):
 # --- INTERFAZ ---
 st.title("🚜 Grúas Mau - Facturación")
 
-# Es vital usar 'key' para que el sistema pueda borrarlos
-with st.expander("📝 Datos del Cliente", expanded=True):
-    nom = st.text_input("Empresa / Nombre", key="k_nom")
-    ced = st.text_input("Cédula o NIT", key="k_ced")
-    tel = st.text_input("Teléfono", key="k_tel")
+# Usamos un formulario para agrupar los datos y permitir el borrado real
+with st.form("formulario_proforma", clear_on_submit=True):
+    st.subheader("📝 Datos del Cliente")
+    nom = st.text_input("Empresa / Nombre")
+    ced = st.text_input("Cédula o NIT")
+    tel = st.text_input("Teléfono")
+    
+    st.divider()
+    aplicar_iva = st.checkbox("¿Cobrar el 13% de IVA?", value=False)
+    
+    st.subheader("🛠️ Detalle del Servicio")
+    it_n = st.text_input("¿Qué servicio se realizó?")
+    col1, col2 = st.columns(2)
+    with col1: it_c = st.number_input("Cantidad", min_value=1, value=1)
+    with col2: it_p = st.number_input("Precio", min_value=0.0, step=1000.0)
+    
+    # El botón del formulario agrega a la lista
+    boton_agregar = st.form_submit_button("➕ AGREGAR SERVICIO")
+    
+    if boton_agregar:
+        st.session_state.lista.append({"nombre": it_n, "cantidad": it_c, "precio": it_p})
+        st.toast("Añadido a la tabla")
 
-st.divider()
-aplicar_iva = st.checkbox("¿Cobrar el 13% de IVA?", value=False, key="k_iva")
-
-st.subheader("🛠️ Detalle del Servicio")
-it_n = st.text_input("¿Qué servicio se realizó?", key="k_desc")
-c1, c2 = st.columns(2)
-with c1: it_c = st.number_input("Cantidad", min_value=1, value=1, key="k_cant")
-with c2: it_p = st.number_input("Precio", min_value=0.0, step=1000.0, key="k_prec")
-
-if st.button("➕ AGREGAR A LA TABLA", use_container_width=True):
-    if 'lista' not in st.session_state: st.session_state.lista = []
-    st.session_state.lista.append({"nombre": it_n, "cantidad": it_c, "precio": it_p})
-    st.toast("Agregado")
-
-if 'lista' in st.session_state and st.session_state.lista:
+# Mostrar la tabla fuera del formulario para que sea visible mientras se llena
+if st.session_state.lista:
+    st.subheader("Resumen de Servicios")
     st.table(st.session_state.lista)
     
+    # Botón para generar PDF
     res = generar_pdf({"nombre": nom, "id": ced}, st.session_state.lista, {"tel": tel}, aplicar_iva)
     
     if not isinstance(res, str):
         nom_arch = nom.replace(" ", "_") if nom else "Mau"
         st.download_button(
-            label="💾 DESCARGAR PROFORMA PDF",
+            label="💾 DESCARGAR PDF",
             data=bytes(res),
             file_name=f"Proforma_{nom_arch}.pdf",
             mime="application/pdf",
@@ -132,6 +133,7 @@ if 'lista' in st.session_state and st.session_state.lista:
             type="primary"
         )
 
-# Este botón ahora limpia TODA la memoria de la página
-if st.button("🧹 LIMPIAR TODO Y NUEVA PROFORMA", use_container_width=True):
-    reiniciar_aplicacion()
+    # Botón para limpiar todo (incluyendo la lista)
+    if st.button("🧹 NUEVA PROFORMA (BORRAR TODO)", use_container_width=True):
+        st.session_state.lista = []
+        st.rerun()
