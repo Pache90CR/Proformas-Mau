@@ -29,12 +29,12 @@ class PDF(FPDF):
             self.ln(50) 
         
         self.set_font('Arial', 'B', 16)
-        self.cell(0, 10, 'FACTURA PROFORMA', 0, 1, 'R')
+        self.cell(0, 10, 'FACTURA', 0, 1, 'R')
         self.set_font('Arial', '', 10)
         ahora_cr = datetime.now(local_tz)
         num_proforma = ahora_cr.strftime("%Y%m%d-%H%M")
         fecha_hoy = ahora_cr.strftime("%d/%m/%Y %I:%M %p")
-        self.cell(0, 5, f'Proforma N: {num_proforma}', 0, 1, 'R')
+        self.cell(0, 5, f'Factura N°: {num_proforma}', 0, 1, 'R')
         self.cell(0, 5, f'Fecha: {fecha_hoy}', 0, 1, 'R')
         self.ln(10)
 
@@ -46,7 +46,7 @@ def generar_pdf(datos_cliente, items, info_adicional, aplicar_iva):
         pdf.cell(0, 7, "GRUAS MAU - SERVICIO 24/7", 0, 1)
         pdf.set_font("Arial", size=9)
         pdf.cell(0, 5, "Telefonos: 8875-5921 / 6231-2471 / 8438-2706", 0, 1)
-        pdf.cell(0, 5, "Emails: Mau27@gmail.com / Jossimedra@gmail.com", 0, 1)
+        pdf.cell(0, 5, "Emails: Jossimedra@gmail.com / Mau27@gmail.com", 0, 1)
         pdf.ln(10)
 
         pdf.set_fill_color(240, 240, 240)
