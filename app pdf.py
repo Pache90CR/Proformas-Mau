@@ -14,7 +14,7 @@ if 'lista' not in st.session_state:
 
 # Definimos el nombre exacto del archivo de imagen
 # Asegúrate de que image_5.png esté subido con este nombre en GitHub
-IMAGEN_LOGO = "logo_icono.png"
+IMAGEN_LOGO = "logo.png"
 
 class PDF(FPDF):
     def header(self):
