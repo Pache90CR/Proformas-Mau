@@ -8,12 +8,12 @@ import pytz
 st.set_page_config(page_title="Proforma Grúas Mau", layout="centered")
 local_tz = pytz.timezone('America/Costa_Rica')
 
+# --- INICIALIZACIÓN DE VARIABLES ---
 if 'lista' not in st.session_state:
     st.session_state.lista = []
 
 class PDF(FPDF):
     def header(self):
-        # Logo en el PDF
         if os.path.exists("logo_icono.png"):
             self.image("logo_icono.png", 55, 10, 100) 
             self.ln(50) 
@@ -88,61 +88,58 @@ def generar_pdf(datos_cliente, items, info_adicional, aplicar_iva):
     except Exception as e:
         return str(e)
 
-# --- ENCABEZADO CORREGIDO (SIN DUPLICADOS) ---
+# --- ENCABEZADO ---
 icon_path = "logo_icono.png"
-
-# Creamos dos columnas: una pequeña para el icono y una grande para el texto
 col_ico, col_tit = st.columns([1, 4])
-
 with col_ico:
-    if os.path.exists(icon_path):
-        st.image(icon_path, width=70)
-    else:
-        st.write("🚜") # Emoji de respaldo si no hay imagen
-
+    if os.path.exists(icon_path): st.image(icon_path, width=70)
+    else: st.write("🚜")
 with col_tit:
     st.title("Grúas Mau - Facturación")
 
-# --- FORMULARIO ---
-with st.form("formulario_proforma", clear_on_submit=True):
-    st.subheader("📝 Datos del Cliente")
-    nom = st.text_input("Empresa / Nombre")
-    ced = st.text_input("Nit / Cedula")
-    tel = st.text_input("Telefono")
-    
-    st.divider()
-    aplicar_iva = st.checkbox("¿Cobrar el 13% de IVA?", value=False)
-    
-    st.subheader("🛠️ Detalle del Servicio")
-    it_n = st.text_input("¿Qué servicio se realizó?")
-    c1, c2 = st.columns(2)
-    with c1: it_c = st.number_input("Cantidad", min_value=1, value=1)
-    with c2: it_p = st.number_input("Precio", min_value=0.0, step=1000.0)
-    
-    boton_agregar = st.form_submit_button("➕ AGREGAR SERVICIO")
-    
-    if boton_agregar:
-        if it_n and it_c > 0 and it_p > 0:
-            st.session_state.lista.append({"nombre": it_n, "cantidad": it_c, "precio": it_p})
-            st.toast("Añadido a la tabla")
+# --- SECCIÓN DE DATOS (FUERA DE FORMULARIO PARA EVITAR ERRORES) ---
+with st.expander("📝 Datos del Cliente", expanded=True):
+    nom = st.text_input("Empresa / Nombre", key="txt_nom")
+    ced = st.text_input("Nit / Cedula", key="txt_ced")
+    tel = st.text_input("Telefono", key="txt_tel")
 
+st.divider()
+aplicar_iva = st.checkbox("¿Cobrar el 13% de IVA?", value=False)
+
+st.subheader("🛠️ Detalle del Servicio")
+it_n = st.text_input("¿Qué servicio se realizó?", key="txt_serv")
+c1, c2 = st.columns(2)
+with c1: it_c = st.number_input("Cantidad", min_value=1, value=1, key="num_cant")
+with c2: it_p = st.number_input("Precio", min_value=0.0, step=1000.0, key="num_prec")
+
+# BOTÓN AGREGAR (Ahora funciona siempre)
+if st.button("➕ AGREGAR A LA TABLA", use_container_width=True):
+    if it_n:
+        st.session_state.lista.append({"nombre": it_n, "cantidad": it_c, "precio": it_p})
+        st.toast(f"Agregado: {it_n}")
+    else:
+        st.error("Escribe la descripción del servicio")
+
+# --- TABLA Y GENERACIÓN ---
 if st.session_state.lista:
-    st.subheader("Resumen de Servicios")
     st.table(st.session_state.lista)
     
     res = generar_pdf({"nombre": nom, "id": ced}, st.session_state.lista, {"tel": tel}, aplicar_iva)
     
     if not isinstance(res, str):
-        nom_arch = nom.replace(" ", "_") if nom else "Mau"
         st.download_button(
-            label="💾 DESCARGAR PDF",
+            label="💾 DESCARGAR PROFORMA PDF",
             data=bytes(res),
-            file_name=f"Proforma_{nom_arch}.pdf",
+            file_name=f"Proforma_{nom if nom else 'Mau'}.pdf",
             mime="application/pdf",
             use_container_width=True,
             type="primary"
         )
 
+    # BOTÓN LIMPIAR (Borra la lista y reinicia los campos)
     if st.button("🧹 NUEVA PROFORMA (BORRAR TODO)", use_container_width=True):
         st.session_state.lista = []
+        # Para limpiar los textos, reiniciamos la sesión
+        for key in st.session_state.keys():
+            del st.session_state[key]
         st.rerun()
