@@ -8,16 +8,23 @@ import pytz
 st.set_page_config(page_title="Proforma Grúas Mau", layout="centered")
 local_tz = pytz.timezone('America/Costa_Rica')
 
+# --- INICIALIZACIÓN DE VARIABLES ---
 if 'lista' not in st.session_state:
     st.session_state.lista = []
+if 'form_count' not in st.session_state:
+    st.session_state.form_count = 0
+
+# Función para limpiar TODO
+def limpiar_todo():
+    st.session_state.lista = []
+    st.session_state.form_count += 1  # Esto obliga a los campos a resetearse
+    st.rerun()
 
 # --- CLASE PARA EL PDF ---
 class PDF(FPDF):
     def header(self):
-        # USAMOS logo.png PARA EL PDF (Centrado y al 100)
         archivo_pdf = "logo.png"
         if os.path.exists(archivo_pdf):
-            # Centrado: (210 ancho hoja - 100 ancho logo) / 2 = 55
             self.image(archivo_pdf, 55, 10, 100) 
             self.ln(50) 
         
@@ -91,32 +98,31 @@ def generar_pdf(datos_cliente, items, info_adicional, aplicar_iva):
     except Exception as e:
         return str(e)
 
-# --- ENCABEZADO DE LA PAGINA WEB (Celular) ---
-# USAMOS logo_icono.png PARA EL TITULO
+# --- ENCABEZADO WEB ---
 archivo_web = "logo_icono.png"
 col_ico, col_tit = st.columns([1, 4])
 with col_ico:
-    if os.path.exists(archivo_web):
-        st.image(archivo_web, width=70)
-    else:
-        st.write("🚜")
+    if os.path.exists(archivo_web): st.image(archivo_web, width=70)
+    else: st.write("🚜")
 with col_tit:
     st.title("Grúas Mau - Facturación")
 
-# --- INTERFAZ ---
+# --- INTERFAZ (Campos con llave dinámica para limpieza) ---
+ver = st.session_state.form_count
+
 with st.expander("📝 Datos del Cliente", expanded=True):
-    nom = st.text_input("Empresa / Nombre", key="txt_nom")
-    ced = st.text_input("Nit / Cedula", key="txt_ced")
-    tel = st.text_input("Telefono", key="txt_tel")
+    nom = st.text_input("Empresa / Nombre", key=f"n_{ver}")
+    ced = st.text_input("Nit / Cedula", key=f"c_{ver}")
+    tel = st.text_input("Telefono", key=f"t_{ver}")
 
 st.divider()
-aplicar_iva = st.checkbox("¿Cobrar el 13% de IVA?", value=False)
+aplicar_iva = st.checkbox("¿Cobrar el 13% de IVA?", value=False, key=f"iva_{ver}")
 
 st.subheader("🛠️ Detalle del Servicio")
-it_n = st.text_input("¿Qué servicio se realizó?", key="txt_serv")
+it_n = st.text_input("¿Qué servicio se realizó?", key=f"serv_{ver}")
 c1, c2 = st.columns(2)
-with c1: it_c = st.number_input("Cantidad", min_value=1, value=1, key="num_cant")
-with c2: it_p = st.number_input("Precio", min_value=0.0, step=1000.0, key="num_prec")
+with c1: it_c = st.number_input("Cantidad", min_value=1, value=1, key=f"cant_{ver}")
+with c2: it_p = st.number_input("Precio", min_value=0.0, step=1000.0, key=f"prec_{ver}")
 
 if st.button("➕ AGREGAR A LA TABLA", use_container_width=True):
     if it_n:
@@ -131,18 +137,15 @@ if st.session_state.lista:
     res = generar_pdf({"nombre": nom, "id": ced}, st.session_state.lista, {"tel": tel}, aplicar_iva)
     
     if not isinstance(res, str):
-        nom_arch = nom.replace(" ", "_") if nom else "Mau"
         st.download_button(
             label="💾 DESCARGAR PROFORMA PDF",
             data=bytes(res),
-            file_name=f"Proforma_{nom_arch}.pdf",
+            file_name=f"Proforma_{nom if nom else 'Mau'}.pdf",
             mime="application/pdf",
             use_container_width=True,
             type="primary"
         )
 
+    # BOTÓN LIMPIAR TODO
     if st.button("🧹 NUEVA PROFORMA (BORRAR TODO)", use_container_width=True):
-        st.session_state.lista = []
-        for key in list(st.session_state.keys()):
-            del st.session_state[key]
-        st.rerun()
+        limpiar_todo()
