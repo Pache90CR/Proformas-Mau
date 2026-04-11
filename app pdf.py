@@ -10,16 +10,17 @@ local_tz = pytz.timezone('America/Costa_Rica')
 
 class PDF(FPDF):
     def header(self):
-        # --- LOGO CENTRADO Y GIGANTE (Tamaño 100) ---
+        # --- LOGO CENTRADO Y A TAMAÑO 100 ---
         if os.path.exists("logo.png"):
             # Centrado: (Ancho página 210 - Logo 100) / 2 = 55
             self.image("logo.png", 55, 10, 100) 
-            self.ln(50) # Espacio grande para que el logo no tape nada
+            self.ln(50) # Espacio para el logo
         
         self.set_font('Arial', 'B', 16)
         self.cell(0, 10, 'FACTURA', 0, 1, 'R')
         
         self.set_font('Arial', '', 10)
+        # Hora exacta de Costa Rica
         ahora_cr = datetime.now(local_tz)
         num_proforma = ahora_cr.strftime("%Y%m%d-%H%M")
         fecha_hoy = ahora_cr.strftime("%d/%m/%Y %I:%M %p")
@@ -30,7 +31,6 @@ class PDF(FPDF):
 
 def generar_pdf(datos_cliente, items, info_adicional, aplicar_iva):
     try:
-        # Usamos latin-1 para evitar el error de 'utf-8'
         pdf = PDF()
         pdf.add_page()
         
@@ -48,7 +48,6 @@ def generar_pdf(datos_cliente, items, info_adicional, aplicar_iva):
         pdf.cell(0, 7, " DATOS DEL CLIENTE", 0, 1, 'L', True)
         pdf.set_font("Arial", size=10)
         
-        # Limpiamos tildes para evitar errores
         pdf.cell(0, 7, f"Empresa/Nombre: {datos_cliente['nombre']}", 0, 1)
         pdf.cell(0, 7, f"Cedula: {datos_cliente['id']}", 0, 1)
         pdf.cell(0, 7, f"Telefono: {info_adicional['tel']}", 0, 1)
@@ -68,8 +67,8 @@ def generar_pdf(datos_cliente, items, info_adicional, aplicar_iva):
         subtotal = 0
         for item in items:
             t_linea = item['cantidad'] * item['precio']
-            # Reemplazamos caracteres problemáticos manualmente
-            desc = item['nombre'].replace('á','a').replace('é','e').replace('í','i').replace('ó','o').replace('ú','u').replace('ñ','n')
+            # Limpieza exhaustiva de tildes y eñes para evitar errores
+            desc = item['nombre'].replace('á','a').replace('é','e').replace('í','i').replace('ó','o').replace('ú','u').replace('ñ','n').replace('Á','A').replace('É','E').replace('Í','I').replace('Ó','O').replace('Ú','U').replace('Ñ','N')
             pdf.cell(90, 10, desc, 1)
             pdf.cell(25, 10, str(item['cantidad']), 1, 0, 'C')
             pdf.cell(35, 10, f"{item['precio']:,.2f}", 1, 0, 'R')
@@ -88,6 +87,7 @@ def generar_pdf(datos_cliente, items, info_adicional, aplicar_iva):
         else:
             total = subtotal
         
+        # Color dorado para el total
         pdf.set_fill_color(255, 215, 0)
         pdf.set_font("Arial", 'B', 12)
         pdf.cell(150, 10, "TOTAL A PAGAR: ", 0, 0, 'R')
@@ -97,7 +97,7 @@ def generar_pdf(datos_cliente, items, info_adicional, aplicar_iva):
     except Exception as e:
         return str(e)
 
-# --- INTERFAZ ---
+# --- INTERFAZ STREAMLIT ---
 st.title("🚜 Grúas Mau - Facturación")
 
 with st.expander("📝 Datos del Cliente", expanded=True):
@@ -106,7 +106,8 @@ with st.expander("📝 Datos del Cliente", expanded=True):
     tel = st.text_input("Teléfono")
 
 st.divider()
-aplicar_iva = st.checkbox("¿Cobrar el 13% de IVA?", value=True)
+# Check desactivado por defecto
+aplicar_iva = st.checkbox("¿Cobrar el 13% de IVA?", value=False)
 
 st.subheader("🛠️ Detalle del Servicio")
 it_n = st.text_input("¿Qué servicio se realizó?")
@@ -117,21 +118,21 @@ with c2: it_p = st.number_input("Precio", min_value=0.0, step=1000.0)
 if st.button("➕ AGREGAR A LA TABLA", use_container_width=True):
     if 'lista' not in st.session_state: st.session_state.lista = []
     st.session_state.lista.append({"nombre": it_n, "cantidad": it_c, "precio": it_p})
-    st.toast("Agregado")
+    st.toast("Añadido")
 
 if 'lista' in st.session_state and st.session_state.lista:
     st.table(st.session_state.lista)
     
-    # Generamos el PDF
+    # Generar PDF
     res = generar_pdf({"nombre": nom, "id": ced}, st.session_state.lista, {"tel": tel}, aplicar_iva)
     
-    if isinstance(res, str):
-        st.error(f"Error técnico: {res}")
-    else:
+    if not isinstance(res, str):
+        # Nombre del archivo dinámico
+        nom_arch = nom.replace(" ", "_") if nom else "Mau"
         st.download_button(
             label="💾 DESCARGAR PROFORMA PDF",
             data=bytes(res),
-            file_name=f"Proforma_Mau_{datetime.now(local_tz).strftime('%H%M')}.pdf",
+            file_name=f"Proforma_{nom_arch}.pdf",
             mime="application/pdf",
             use_container_width=True,
             type="primary"
