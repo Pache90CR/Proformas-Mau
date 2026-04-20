@@ -169,3 +169,4 @@ if st.session_state.lista:
     if st.button("🧹 NUEVA PROFORMA (BORRAR TODO)", use_container_width=True):
         limpiar_todo()
 
+
