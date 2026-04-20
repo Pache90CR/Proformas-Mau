@@ -33,7 +33,7 @@ class PDF(FPDF):
         ahora_cr = datetime.now(local_tz)
         num_proforma = ahora_cr.strftime("%Y%m%d-%H%M")
         fecha_hoy = ahora_cr.strftime("%d/%m/%Y %I:%M %p")
-        self.cell(0, 5, f'Proforma N: {num_proforma}', 0, 1, 'R')
+        self.cell(0, 5, f'Factura N°: {num_proforma}', 0, 1, 'R')
         self.cell(0, 5, f'Fecha: {fecha_hoy}', 0, 1, 'R')
         self.ln(10)
 
