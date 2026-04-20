@@ -56,7 +56,7 @@ def generar_pdf(datos_cliente, datos_vehiculo, items, info_adicional, aplicar_iv
         pdf.cell(0, 7, " DATOS DEL CLIENTE", 0, 1, 'L', True)
         pdf.set_font("Arial", size=10)
         pdf.cell(0, 7, f"Empresa/Nombre: {datos_cliente['nombre']}", 0, 1)
-        pdf.cell(0, 7, f"Nit / Cedula: {datos_cliente['id']}", 0, 1)
+        pdf.cell(0, 7, f"Nit: {datos_cliente['id']}", 0, 1)
         pdf.cell(0, 7, f"Telefono: {info_adicional['tel']}", 0, 1)
         pdf.ln(3)
 
