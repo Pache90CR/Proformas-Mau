@@ -19,13 +19,20 @@ def limpiar_todo():
     st.session_state.form_count += 1
     st.rerun()
 
-# Función para limpiar texto y permitir el símbolo ₡ en FPDF
-def txt_pdf(texto):
+# Función para limpiar texto y adaptar tildes/símbolos de forma 100% segura
+def limpiar_texto_pdf(texto):
     if not texto:
         return ""
-    # Mantenemos ₡ y convertimos caracteres a formato seguro para FPDF
-    s = str(texto).replace('á','a').replace('é','e').replace('í','i').replace('ó','o').replace('ú','u').replace('ñ','n').replace('Á','A').replace('É','E').replace('Í','I').replace('Ó','O').replace('Ú','U').replace('Ñ','N')
-    return s.encode('utf-8').decode('latin-1')
+    s = str(texto)
+    # Limpieza de acentos para compatibilidad con FPDF
+    reemplazos = {
+        'á': 'a', 'é': 'e', 'í': 'i', 'ó': 'o', 'ú': 'u', 'ñ': 'n',
+        'Á': 'A', 'É': 'E', 'Í': 'I', 'Ó': 'O', 'Ú': 'U', 'Ñ': 'N',
+        '₡': 'C/.'
+    }
+    for orig, reemplazo in reemplazos.items():
+        s = s.replace(orig, reemplazo)
+    return s.encode('latin-1', 'replace').decode('latin-1')
 
 # --- CLASE PARA EL PDF ---
 class PDF(FPDF):
@@ -50,6 +57,9 @@ def generar_pdf(datos_cliente, datos_vehiculo, items, info_adicional, aplicar_iv
         pdf = PDF()
         pdf.add_page()
         
+        # Para el PDF usamos 'C/.' si es colones o '$' si es dólares
+        simbolo_pdf = "C/." if moneda_simbolo == "₡" else "$"
+        
         # Emisor
         pdf.set_font("Arial", 'B', 12)
         pdf.cell(0, 7, "GRUAS MAU - SERVICIO 24/7", 0, 1)
@@ -61,39 +71,39 @@ def generar_pdf(datos_cliente, datos_vehiculo, items, info_adicional, aplicar_iv
         # Datos Cliente
         pdf.set_fill_color(240, 240, 240)
         pdf.set_font("Arial", 'B', 10)
-        pdf.cell(0, 7, txt_pdf(" DATOS DEL CLIENTE"), 0, 1, 'L', True)
+        pdf.cell(0, 7, limpiar_texto_pdf(" DATOS DEL CLIENTE"), 0, 1, 'L', True)
         pdf.set_font("Arial", size=10)
-        pdf.cell(0, 7, txt_pdf(f"Empresa/Nombre: {datos_cliente['nombre']}"), 0, 1)
-        pdf.cell(0, 7, txt_pdf(f"Nit / Cedula: {datos_cliente['id']}"), 0, 1)
-        pdf.cell(0, 7, txt_pdf(f"Telefono: {info_adicional['tel']}"), 0, 1)
+        pdf.cell(0, 7, limpiar_texto_pdf(f"Empresa/Nombre: {datos_cliente['nombre']}"), 0, 1)
+        pdf.cell(0, 7, limpiar_texto_pdf(f"Nit / Cedula: {datos_cliente['id']}"), 0, 1)
+        pdf.cell(0, 7, limpiar_texto_pdf(f"Telefono: {info_adicional['tel']}"), 0, 1)
         pdf.ln(3)
 
         # Detalles del Vehículo
         pdf.set_fill_color(240, 240, 240)
         pdf.set_font("Arial", 'B', 10)
-        pdf.cell(0, 7, txt_pdf(" DETALLES DEL VEHICULO"), 0, 1, 'L', True)
+        pdf.cell(0, 7, limpiar_texto_pdf(" DETALLES DEL VEHICULO"), 0, 1, 'L', True)
         pdf.set_font("Arial", size=10)
-        pdf.cell(0, 7, txt_pdf(f"Vehiculo: {datos_vehiculo}"), 0, 1)
+        pdf.cell(0, 7, limpiar_texto_pdf(f"Vehiculo: {datos_vehiculo}"), 0, 1)
         pdf.ln(5)
 
         # Tabla Servicios
         pdf.set_fill_color(30, 30, 30)
         pdf.set_text_color(255, 255, 255)
         pdf.set_font("Arial", 'B', 10)
-        pdf.cell(90, 10, txt_pdf(" DESCRIPCION"), 1, 0, 'L', True)
-        pdf.cell(20, 10, txt_pdf("CANT."), 1, 0, 'C', True)
-        pdf.cell(40, 10, txt_pdf(f"PRECIO ({moneda_simbolo})"), 1, 0, 'C', True)
-        pdf.cell(40, 10, txt_pdf(f"TOTAL ({moneda_simbolo})"), 1, 1, 'C', True)
+        pdf.cell(90, 10, limpiar_texto_pdf(" DESCRIPCION"), 1, 0, 'L', True)
+        pdf.cell(20, 10, limpiar_texto_pdf("CANT."), 1, 0, 'C', True)
+        pdf.cell(40, 10, limpiar_texto_pdf(f"PRECIO ({simbolo_pdf})"), 1, 0, 'C', True)
+        pdf.cell(40, 10, limpiar_texto_pdf(f"TOTAL ({simbolo_pdf})"), 1, 1, 'C', True)
 
         pdf.set_text_color(0, 0, 0)
         pdf.set_font("Arial", size=10)
         subtotal = 0
         for item in items:
             t_linea = item['cantidad'] * item['precio']
-            pdf.cell(90, 10, txt_pdf(item['nombre']), 1)
+            pdf.cell(90, 10, limpiar_texto_pdf(item['nombre']), 1)
             pdf.cell(20, 10, str(item['cantidad']), 1, 0, 'C')
-            pdf.cell(40, 10, txt_pdf(f"{moneda_simbolo} {item['precio']:,.2f}"), 1, 0, 'R')
-            pdf.cell(40, 10, txt_pdf(f"{moneda_simbolo} {t_linea:,.2f}"), 1, 1, 'R')
+            pdf.cell(40, 10, limpiar_texto_pdf(f"{simbolo_pdf} {item['precio']:,.2f}"), 1, 0, 'R')
+            pdf.cell(40, 10, limpiar_texto_pdf(f"{simbolo_pdf} {t_linea:,.2f}"), 1, 1, 'R')
             subtotal += t_linea
 
         pdf.ln(5)
@@ -101,21 +111,25 @@ def generar_pdf(datos_cliente, datos_vehiculo, items, info_adicional, aplicar_iv
         if aplicar_iva:
             iva = subtotal * 0.13
             total = subtotal + iva
-            pdf.cell(150, 8, txt_pdf("SUBTOTAL: "), 0, 0, 'R')
-            pdf.cell(40, 8, txt_pdf(f"{moneda_simbolo} {subtotal:,.2f}"), 1, 1, 'R')
-            pdf.cell(150, 8, txt_pdf("IVA (13%): "), 0, 0, 'R')
-            pdf.cell(40, 8, txt_pdf(f"{moneda_simbolo} {iva:,.2f}"), 1, 1, 'R')
+            pdf.cell(150, 8, limpiar_texto_pdf("SUBTOTAL: "), 0, 0, 'R')
+            pdf.cell(40, 8, limpiar_texto_pdf(f"{simbolo_pdf} {subtotal:,.2f}"), 1, 1, 'R')
+            pdf.cell(150, 8, limpiar_texto_pdf("IVA (13%): "), 0, 0, 'R')
+            pdf.cell(40, 8, limpiar_texto_pdf(f"{simbolo_pdf} {iva:,.2f}"), 1, 1, 'R')
         else:
             total = subtotal
         
         pdf.set_fill_color(255, 215, 0)
         pdf.set_font("Arial", 'B', 12)
-        pdf.cell(150, 10, txt_pdf("TOTAL A PAGAR: "), 0, 0, 'R')
-        pdf.cell(40, 10, txt_pdf(f"{moneda_simbolo} {total:,.2f}"), 1, 1, 'R', True)
+        pdf.cell(150, 10, limpiar_texto_pdf("TOTAL A PAGAR: "), 0, 0, 'R')
+        pdf.cell(40, 10, limpiar_texto_pdf(f"{simbolo_pdf} {total:,.2f}"), 1, 1, 'R', True)
 
-        return pdf.output(dest='S')
+        # Salida garantizada en bytes
+        salida = pdf.output(dest='S')
+        if isinstance(salida, str):
+            return salida.encode('latin-1')
+        return bytes(salida)
     except Exception as e:
-        return str(e)
+        return None
 
 # --- INTERFAZ WEB ---
 archivo_web = "logo_icono.png"
@@ -160,12 +174,11 @@ if st.button("➕ AGREGAR A LA TABLA", use_container_width=True):
 if st.session_state.lista:
     st.table(st.session_state.lista)
     
-    res = generar_pdf({"nombre": nom, "id": ced}, vehiculo, st.session_state.lista, {"tel": tel}, aplicar_iva, moneda_simbolo)
+    pdf_bytes = generar_pdf({"nombre": nom, "id": ced}, vehiculo, st.session_state.lista, {"tel": tel}, aplicar_iva, moneda_simbolo)
     
-    if isinstance(res, str) and not res.startswith("%PDF"):
-        st.error(f"Error generando PDF: {res}")
+    if pdf_bytes is None:
+        st.error("Ocurrió un problema generando el documento PDF.")
     else:
-        pdf_bytes = res.encode('latin-1') if isinstance(res, str) else res
         nom_arch = nom.replace(" ", "_") if nom else "Mau"
         st.download_button(
             label=f"💾 DESCARGAR PROFORMA ({moneda_simbolo})",
