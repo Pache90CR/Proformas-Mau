@@ -28,7 +28,7 @@ def limpiar_texto_pdf(texto):
     reemplazos = {
         'á': 'a', 'é': 'e', 'í': 'i', 'ó': 'o', 'ú': 'u', 'ñ': 'n',
         'Á': 'A', 'É': 'E', 'Í': 'I', 'Ó': 'O', 'Ú': 'U', 'Ñ': 'N',
-        '₡': 'C/.'
+        '₡': '¢'
     }
     for orig, reemplazo in reemplazos.items():
         s = s.replace(orig, reemplazo)
@@ -57,8 +57,8 @@ def generar_pdf(datos_cliente, datos_vehiculo, items, info_adicional, aplicar_iv
         pdf = PDF()
         pdf.add_page()
         
-        # Para el PDF usamos 'C/.' si es colones o '$' si es dólares
-        simbolo_pdf = "C/." if moneda_simbolo == "₡" else "$"
+        # Para el PDF usamos '¢' si es colones o '$' si es dólares
+        simbolo_pdf = "¢" if moneda_simbolo == "₡" else "$"
         
         # Emisor
         pdf.set_font("Arial", 'B', 12)
