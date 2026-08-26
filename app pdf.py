@@ -24,7 +24,6 @@ def limpiar_texto_pdf(texto):
     if not texto:
         return ""
     s = str(texto)
-    # Limpieza de acentos para compatibilidad con FPDF
     reemplazos = {
         'á': 'a', 'é': 'e', 'í': 'i', 'ó': 'o', 'ú': 'u', 'ñ': 'n',
         'Á': 'A', 'É': 'E', 'Í': 'I', 'Ó': 'O', 'Ú': 'U', 'Ñ': 'N',
@@ -36,6 +35,10 @@ def limpiar_texto_pdf(texto):
 
 # --- CLASE PARA EL PDF ---
 class PDF(FPDF):
+    def __init__(self, fecha_personalizada=None):
+        super().__init__()
+        self.fecha_personalizada = fecha_personalizada
+
     def header(self):
         archivo_pdf = "logo.png"
         if os.path.exists(archivo_pdf):
@@ -45,16 +48,23 @@ class PDF(FPDF):
         self.set_font('Arial', 'B', 16)
         self.cell(0, 10, 'FACTURA', 0, 1, 'R')
         self.set_font('Arial', '', 10)
+        
         ahora_cr = datetime.now(local_tz)
         num_proforma = ahora_cr.strftime("%Y%m%d-%H%M")
-        fecha_hoy = ahora_cr.strftime("%d/%m/%Y %I:%M %p")
+        
+        # Si el usuario seleccionó una fecha, usamos esa fecha con la hora actual de CR
+        if self.fecha_personalizada:
+            fecha_str = self.fecha_personalizada.strftime("%d/%m/%Y") + " " + ahora_cr.strftime("%I:%M %p")
+        else:
+            fecha_str = ahora_cr.strftime("%d/%m/%Y %I:%M %p")
+        
         self.cell(0, 5, f'Proforma N: {num_proforma}', 0, 1, 'R')
-        self.cell(0, 5, f'Fecha: {fecha_hoy}', 0, 1, 'R')
+        self.cell(0, 5, f'Fecha: {fecha_str}', 0, 1, 'R')
         self.ln(10)
 
-def generar_pdf(datos_cliente, datos_vehiculo, items, info_adicional, aplicar_iva, moneda_simbolo):
+def generar_pdf(datos_cliente, datos_vehiculo, items, info_adicional, aplicar_iva, moneda_simbolo, fecha_sel):
     try:
-        pdf = PDF()
+        pdf = PDF(fecha_personalizada=fecha_sel)
         pdf.add_page()
         
         # Para el PDF usamos '¢' si es colones o '$' si es dólares
@@ -123,7 +133,6 @@ def generar_pdf(datos_cliente, datos_vehiculo, items, info_adicional, aplicar_iv
         pdf.cell(150, 10, limpiar_texto_pdf("TOTAL A PAGAR: "), 0, 0, 'R')
         pdf.cell(40, 10, limpiar_texto_pdf(f"{simbolo_pdf} {total:,.2f}"), 1, 1, 'R', True)
 
-        # Salida garantizada en bytes
         salida = pdf.output(dest='S')
         if isinstance(salida, str):
             return salida.encode('latin-1')
@@ -148,6 +157,10 @@ with c_mon:
     moneda_simbolo = st.radio("Tipo de Moneda", ["₡", "$"], horizontal=True, key=f"mon_{ver}")
 with c_iva:
     aplicar_iva = st.checkbox("¿Cobrar 13% IVA?", value=False, key=f"iva_{ver}")
+
+# --- SELECTOR DE FECHA ---
+fecha_actual_cr = datetime.now(local_tz).date()
+fecha_seleccionada = st.date_input("📅 Fecha de la Proforma", value=fecha_actual_cr, format="DD/MM/YYYY", key=f"fec_{ver}")
 
 with st.expander("📝 Datos del Cliente", expanded=True):
     nom = st.text_input("Empresa / Nombre", key=f"n_{ver}")
@@ -174,7 +187,7 @@ if st.button("➕ AGREGAR A LA TABLA", use_container_width=True):
 if st.session_state.lista:
     st.table(st.session_state.lista)
     
-    pdf_bytes = generar_pdf({"nombre": nom, "id": ced}, vehiculo, st.session_state.lista, {"tel": tel}, aplicar_iva, moneda_simbolo)
+    pdf_bytes = generar_pdf({"nombre": nom, "id": ced}, vehiculo, st.session_state.lista, {"tel": tel}, aplicar_iva, moneda_simbolo, fecha_seleccionada)
     
     if pdf_bytes is None:
         st.error("Ocurrió un problema generando el documento PDF.")
