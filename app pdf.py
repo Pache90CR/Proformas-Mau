@@ -43,7 +43,7 @@ class PDF(FPDF):
             self.ln(50) 
         
         self.set_font('Arial', 'B', 16)
-        self.cell(0, 10, 'FACTURA PROFORMA', 0, 1, 'R')
+        self.cell(0, 10, 'FACTURA', 0, 1, 'R')
         self.set_font('Arial', '', 10)
         ahora_cr = datetime.now(local_tz)
         num_proforma = ahora_cr.strftime("%Y%m%d-%H%M")
